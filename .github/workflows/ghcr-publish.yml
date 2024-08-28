@@ -8,7 +8,6 @@ on:
 
 env:
     IMAGE_NAME: caddy-cloudflaredns
-    IMAGE_TAGS: latest ${{ github.sha }}
     IMAGE_REGISTRY: ghcr.io/${{ github.repository_owner }}
     REGISTRY_USER: ${{ github.actor }}
     REGISTRY_PASSWORD: ${{ github.token }}
@@ -26,13 +25,20 @@ jobs:
       - name: Checkout Push to Registry action
         uses: actions/checkout@v4
 
+      # Extract the tag from the Containerfile
+      - name: Get upstream tag
+        id: get_upstream_tag
+        run: |
+          UPSTREAM_TAG=$(grep -m 2 -oP '(?<=FROM caddy:)[^ ]+' Containerfile | tail -n 1)
+          echo "UPSTREAM_TAG=${UPSTREAM_TAG}" >> "$GITHUB_ENV"
+
       # Build image using Buildah action
       - name: Build Image
         id: build_image
         uses: redhat-actions/buildah-build@v2
         with:
           image: ${{ env.IMAGE_NAME }}
-          tags: ${{ env.IMAGE_TAGS }}
+          tags: ${{ env.UPSTREAM_TAG }} latest
           containerfiles: |
             ./Containerfile
 
