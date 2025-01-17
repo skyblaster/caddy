@@ -18,6 +18,11 @@ jobs:
         os: [ubuntu-24.04, ubuntu-24.04-arm]
 
     runs-on: ${{ matrix.os }}
+    
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
 
     steps:
       - name: Checkout code
@@ -32,6 +37,12 @@ jobs:
           registry: ${{ env.IMAGE_REGISTRY }}
           username: ${{ env.REGISTRY_USER }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23.0'
+          check-latest: true
 
       - name: Extract the tag from the Containerfile
         id: get_upstream_tag
@@ -53,6 +64,12 @@ jobs:
   manifest-push:
     needs: build-and-push
     runs-on: ubuntu-24.04
+
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+
     steps:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
