@@ -11,7 +11,7 @@ env:
   REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
 
 jobs:
-  build-and-push:
+  build:
     strategy:
       matrix:
         architecture: [amd64, arm64]
@@ -51,6 +51,7 @@ jobs:
           echo "UPSTREAM_TAG=${UPSTREAM_TAG}" >> "$GITHUB_ENV"
 
       - name: Build and push Docker image
+        id: build_and_push
         uses: docker/build-push-action@v4
         with:
           context: .
@@ -61,8 +62,8 @@ jobs:
             ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.UPSTREAM_TAG }}-${{ matrix.architecture }}
             ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:latest-${{ matrix.architecture }}
 
-  manifest-push:
-    needs: build-and-push
+  manifest:
+    needs: build
     runs-on: ubuntu-24.04
 
     permissions:
@@ -84,9 +85,9 @@ jobs:
       - name: Create and push multi-architecture manifest
         run: |
           docker buildx imagetools create \
-            --tag ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.UPSTREAM_TAG }} \
-            ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.UPSTREAM_TAG }}-amd64 \
-            ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.UPSTREAM_TAG }}-arm64
+            --tag ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.build.outputs.get_upstream_tag }} \
+            ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.build.outputs.get_upstream_tag }}-amd64 \
+            ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.build.outputs.get_upstream_tag }}-arm64
 
           docker buildx imagetools create \
             --tag ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:latest \
