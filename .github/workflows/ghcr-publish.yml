@@ -56,7 +56,7 @@ jobs:
           context: .
           file: ./Containerfile
           platforms: linux/${{ matrix.architecture }}
-          outputs: type=registry
+          push: true
           tags: |
             ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.UPSTREAM_TAG }}-${{ matrix.architecture }}
             ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:latest-${{ matrix.architecture }}
