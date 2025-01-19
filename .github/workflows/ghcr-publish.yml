@@ -50,11 +50,11 @@ jobs:
       - name: Print Containerfile contents
         run: cat Containerfile
 
-      # Extract the tag from the Containerfile
+      # Extract the tag from the Containerfile using awk
       - name: Get upstream tag
         id: get_upstream_tag
         run: |
-          UPSTREAM_TAG=$(grep -m 2 -oP '(?<=FROM .*caddy:)[^ ]+' Containerfile | tail -n 1)
+          UPSTREAM_TAG=$(awk '/^FROM .*caddy:/ { split($2, a, ":"); print a[2] }' Containerfile | tail -n 1)
           echo "Extracted UPSTREAM_TAG=${UPSTREAM_TAG}"
           if [ -z "$UPSTREAM_TAG" ]; then
             echo "UPSTREAM_TAG must not be empty"
