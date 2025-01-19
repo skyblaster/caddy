@@ -32,11 +32,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Install buildah on the runner
-      - name: Install Buildah
+      # Install buildah and podman on the runner
+      - name: Install Buildah and Podman
         run: |
           sudo apt-get update
-          sudo apt-get install -y buildah
+          sudo apt-get install -y buildah podman
 
       # Extract the tag from the Containerfile
       - name: Get upstream tag
