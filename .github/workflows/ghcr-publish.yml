@@ -27,6 +27,9 @@ jobs:
       packages: write
       id-token: write
 
+    outputs:
+      tag: ${{ steps.meta.outputs.tags }}
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -82,7 +85,7 @@ jobs:
         env:
           IMAGE_REGISTRY: ${{ env.IMAGE_REGISTRY }}
           IMAGE_NAME: ${{ env.IMAGE_NAME }}
-          TAG: ${{ steps.meta.outputs.tags }}
+          TAG: ${{ needs.build-and-push.outputs.tag }}
         run: |
           echo "Creating and pushing manifest for tag $TAG"
           docker manifest create $IMAGE_REGISTRY/$IMAGE_NAME:$TAG \
