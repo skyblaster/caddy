@@ -1,33 +1,35 @@
-name: Build and Push Docker Image
+name: Multi-Arch Caddy Image Build and Push
 
 on:
   push:
-    branches:
-      - main
+    branches: [ "main" ]
 
 jobs:
-  build:
+  build-and-push:
     strategy:
       matrix:
-        arch: [amd64, arm64]
+        platform: [amd64, arm64]
         include:
-          - arch: amd64
-            runs-on: ubuntu-24.04
-            platform: linux/amd64
-            tag: amd64
-          - arch: arm64
-            runs-on: ubuntu-24.04-arm
-            platform: linux/arm64
-            tag: arm64
+          - platform: amd64
+            runner: ubuntu-24.04
+          - platform: arm64
+            runner: ubuntu-24.04-arm
 
-    runs-on: ${{ matrix.runs-on }}
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
+        with:
+          install: true
+          driver: docker-container
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v2
@@ -36,30 +38,33 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push Docker image for ${{ matrix.arch }}
-        uses: docker/build-push-action@v4
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v5
         with:
-          context: .
-          file: ./Containerfile
-          platforms: ${{ matrix.platform }}
+          context: .  # Assuming the Dockerfile is in the root of the repository
+          file: https://github.com/skyblaster/caddy/blob/main/Containerfile  # Use the URL for the Dockerfile
+          platforms: linux/${{ matrix.platform }}
           push: true
-          tags: ghcr.io/skyblaster/caddy:${{ matrix.tag }}
+          tags: ghcr.io/skyblaster/caddy:latest  # Use a single tag for both architectures
 
-  push_manifest:
-    needs: build
+  create-manifest:
     runs-on: ubuntu-latest
+    needs: build-and-push
+    permissions:
+      contents: read
+      packages: write
     steps:
-      - name: Login to GitHub Container Registry
+      - name: Log in to GitHub Container Registry
         uses: docker/login-action@v2
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Create and push manifest
+      - name: Create Manifest
         run: |
+          echo "Creating manifest for ghcr.io/skyblaster/caddy:latest"
           docker manifest create ghcr.io/skyblaster/caddy:latest \
-            ghcr.io/skyblaster/caddy:amd64 \
-            ghcr.io/skyblaster/caddy:arm64
-
+            --amend ghcr.io/skyblaster/caddy:${{ needs.build-and-push.outputs.TAG_amd64 }} \
+            --amend ghcr.io/skyblaster/caddy:${{ needs.build-and-push.outputs.TAG_arm64 }}
           docker manifest push ghcr.io/skyblaster/caddy:latest
