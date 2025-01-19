@@ -6,7 +6,6 @@ on:
       - main
     paths:
       - 'Containerfile'
-  workflow_dispatch:
 
 jobs:
   build:
