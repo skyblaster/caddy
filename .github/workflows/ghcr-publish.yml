@@ -54,10 +54,9 @@ jobs:
             exit 1
           fi
           echo "UPSTREAM_TAG=${UPSTREAM_TAG}" >> "$GITHUB_ENV"
-          echo "::set-output name=UPSTREAM_TAG::${UPSTREAM_TAG}"
 
       - name: Verify UPSTREAM_TAG
-        run: echo "UPSTREAM_TAG is set to ${{ steps.get_upstream_tag.outputs.UPSTREAM_TAG }}"
+        run: echo "UPSTREAM_TAG is set to ${{ env.UPSTREAM_TAG }}"
 
       - name: Build and Push Docker Image
         uses: docker/build-push-action@v5
@@ -67,7 +66,7 @@ jobs:
           platforms: linux/${{ matrix.platform }}
           push: true
           tags: |
-            ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.get_upstream_tag.outputs.UPSTREAM_TAG }}-${{ matrix.platform }}
+            ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.UPSTREAM_TAG }}-${{ matrix.platform }}
             ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:latest-${{ matrix.platform }}
 
   create-manifest:
