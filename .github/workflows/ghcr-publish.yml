@@ -12,7 +12,15 @@ env:
 
 jobs:
   push-ghcr:
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        platform: [amd64, arm64]
+        include:
+          - platform: amd64
+            runs-on: ubuntu-24.04
+          - platform: arm64
+            runs-on: ubuntu-24.04-arm
+
     permissions:
       contents: read
       packages: write
@@ -29,6 +37,7 @@ jobs:
         run: |
           UPSTREAM_TAG=$(grep -m 2 -oP '(?<=FROM caddy:)[^ ]+' Containerfile | tail -n 1)
           echo "UPSTREAM_TAG=${UPSTREAM_TAG}" >> "$GITHUB_ENV"
+      
       # Build image using Buildah action
       - name: Build Image
         id: build_image
@@ -38,6 +47,8 @@ jobs:
           tags: ${{ env.UPSTREAM_TAG }} latest
           containerfiles: |
             ./Containerfile
+          platforms: ${{ matrix.platform }}
+      
       # Push the image to GHCR (Image Registry)
       - name: Push To GHCR
         uses: redhat-actions/push-to-registry@v2
