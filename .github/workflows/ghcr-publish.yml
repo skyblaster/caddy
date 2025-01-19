@@ -46,10 +46,6 @@ jobs:
           username: ${{ env.REGISTRY_USER }}
           password: ${{ env.REGISTRY_PASSWORD }}
 
-      # Debug: Print contents of the Containerfile
-      - name: Print Containerfile contents
-        run: cat Containerfile
-
       # Extract the tag from the Containerfile using awk
       - name: Get upstream tag
         id: get_upstream_tag
@@ -86,15 +82,15 @@ jobs:
           username: ${{ env.REGISTRY_USER }}
           password: ${{ env.REGISTRY_PASSWORD }}
 
-      # Create and push the multi-architecture manifest
+      # Create and push the multi-architecture manifest using create-oci-docker-manifest-list action
       - name: Create and Push Manifest
-        uses: docker/manifest-action@v2
+        uses: elgohr/oci-docker-manifest-list-action@v2
         with:
           images: |
             ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.UPSTREAM_TAG }}-amd64
             ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:latest-amd64
             ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.UPSTREAM_TAG }}-arm64
             ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:latest-arm64
-          target: |
+          tags: |
             ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.UPSTREAM_TAG }}
             ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:latest
