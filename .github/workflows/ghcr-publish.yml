@@ -57,13 +57,14 @@ jobs:
             exit 1
           fi
           echo "UPSTREAM_TAG=${UPSTREAM_TAG}" >> "$GITHUB_ENV"
+          echo "UPSTREAM_TAG is set to ${UPSTREAM_TAG}"
 
       # Build and push the architecture-specific Docker image
       - name: Build and Push Docker Image
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: Containerfile
+          file: Containerfile # Specify the Containerfile here
           platforms: linux/${{ matrix.platform }}
           push: true
           tags: |
@@ -82,15 +83,21 @@ jobs:
           username: ${{ env.REGISTRY_USER }}
           password: ${{ env.REGISTRY_PASSWORD }}
 
+      # Verify the UPSTREAM_TAG is correctly set
+      - name: Verify UPSTREAM_TAG
+        run: echo "Using UPSTREAM_TAG=${{ env.UPSTREAM_TAG }}"
+
       # Create and push the multi-architecture manifest using Docker commands
       - name: Create and Push Manifest
         run: |
+          echo "Creating manifest for tag ${{ env.UPSTREAM_TAG }}"
           docker manifest create ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.UPSTREAM_TAG }} \
             --amend ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.UPSTREAM_TAG }}-amd64 \
             --amend ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.UPSTREAM_TAG }}-arm64
           
           docker manifest push ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.UPSTREAM_TAG }}
           
+          echo "Creating manifest for latest tag"
           docker manifest create ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:latest \
             --amend ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:latest-amd64 \
             --amend ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:latest-arm64
