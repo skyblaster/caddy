@@ -20,6 +20,9 @@ jobs:
 
     runs-on: ${{ matrix.runs-on }}
 
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -35,7 +38,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push Docker image for ${{ matrix.arch }}
-        id: build-${{ matrix.arch }}
+        id: build
         uses: docker/build-push-action@v4
         with:
           context: .
@@ -60,5 +63,5 @@ jobs:
         with:
           tags: ghcr.io/skyblaster/caddy:latest
           sources: |
-            ghcr.io/skyblaster/caddy:amd64@${{ needs.build.outputs['build-amd64.digest'] }}
-            ghcr.io/skyblaster/caddy:arm64@${{ needs.build.outputs['build-arm64.digest'] }}
+            ghcr.io/skyblaster/caddy:amd64@${{ needs.build.outputs.digest }}
+            ghcr.io/skyblaster/caddy:arm64@${{ needs.build.outputs.digest }}
