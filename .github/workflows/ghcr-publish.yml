@@ -58,6 +58,10 @@ jobs:
           fi
           echo "UPSTREAM_TAG=${UPSTREAM_TAG}" >> "$GITHUB_ENV"
 
+      # Verify the UPSTREAM_TAG is correctly set
+      - name: Verify UPSTREAM_TAG
+        run: echo "UPSTREAM_TAG is set to ${{ env.UPSTREAM_TAG }}"
+
       # Build and push the architecture-specific Docker image
       - name: Build and Push Docker Image
         uses: docker/build-push-action@v5
@@ -81,10 +85,6 @@ jobs:
           registry: ghcr.io
           username: ${{ env.REGISTRY_USER }}
           password: ${{ env.REGISTRY_PASSWORD }}
-
-      # Verify the UPSTREAM_TAG is correctly set
-      - name: Verify UPSTREAM_TAG
-        run: echo "Using UPSTREAM_TAG=${{ env.UPSTREAM_TAG }}"
 
       # Create and push the multi-architecture manifest using Docker commands
       - name: Create and Push Manifest
