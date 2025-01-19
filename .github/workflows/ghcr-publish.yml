@@ -14,11 +14,9 @@ jobs:
           - arch: amd64
             runs-on: ubuntu-24.04
             platform: linux/amd64
-            tag: amd64
           - arch: arm64
             runs-on: ubuntu-24.04-arm
             platform: linux/arm64
-            tag: arm64
 
     runs-on: ${{ matrix.runs-on }}
 
@@ -37,14 +35,14 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push Docker image for ${{ matrix.arch }}
-        id: build
+        id: build-${{ matrix.arch }}
         uses: docker/build-push-action@v4
         with:
           context: .
           file: ./Dockerfile
           platforms: ${{ matrix.platform }}
           push: true
-          tags: ghcr.io/skyblaster/caddy:${{ matrix.tag }}
+          tags: ghcr.io/skyblaster/caddy:${{ matrix.arch }}
 
   push_manifest:
     needs: build
@@ -58,9 +56,9 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create Multi-Arch Manifest
-        uses: int128/docker-manifest-create-action@v1
+        uses: int128/docker-manifest-create-action@v2
         with:
           tags: ghcr.io/skyblaster/caddy:latest
           sources: |
-            ghcr.io/skyblaster/caddy:amd64@${{ needs.build.outputs.digest }}
-            ghcr.io/skyblaster/caddy:arm64@${{ needs.build.outputs.digest }}
+            ghcr.io/skyblaster/caddy:amd64@${{ needs.build.outputs['build-amd64.digest'] }}
+            ghcr.io/skyblaster/caddy:arm64@${{ needs.build.outputs['build-arm64.digest'] }}
