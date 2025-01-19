@@ -1,8 +1,14 @@
-name: Multi-Arch Caddy Image Build and Push
+name: Build and Push Docker Image
 
 on:
   push:
     branches: [ "main" ]
+
+env:
+  IMAGE_NAME: caddy
+  IMAGE_REGISTRY: ghcr.io/${{ github.repository_owner }}
+  REGISTRY_USER: ${{ github.actor }}
+  REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
 
 jobs:
   build-and-push:
@@ -31,20 +37,22 @@ jobs:
           install: true
           driver: docker-container
 
-      - name: Login to GitHub Container Registry
+      - name: Log in to GitHub Container Registry
         uses: docker/login-action@v2
         with:
           registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          username: ${{ env.REGISTRY_USER }}
+          password: ${{ env.REGISTRY_PASSWORD }}
 
       - name: Build and Push Docker Image
         uses: docker/build-push-action@v5
         with:
-          context: .  # Assuming the Dockerfile is in the root of the repository
+          context: .
+          file: Dockerfile
           platforms: linux/${{ matrix.platform }}
           push: true
-          tags: ghcr.io/skyblaster/caddy:latest  # Use a single tag for both architectures
+          tags: |
+            ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:latest
 
   create-manifest:
     runs-on: ubuntu-latest
@@ -52,18 +60,23 @@ jobs:
     permissions:
       contents: read
       packages: write
+
     steps:
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v2
         with:
           registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          username: ${{ env.REGISTRY_USER }}
+          password: ${{ env.REGISTRY_PASSWORD }}
 
-      - name: Create Manifest
+      - name: Set up Docker Buildx
+        uses: crazy-max/ghaction-docker-buildx@v1
+        with:
+          version: latest
+
+      - name: Create and Push Multi-Platform Manifest
         run: |
-          echo "Creating manifest for ghcr.io/skyblaster/caddy:latest"
-          docker manifest create ghcr.io/skyblaster/caddy:latest \
-            --amend ghcr.io/skyblaster/caddy:${{ needs.build-and-push.outputs.TAG_amd64 }} \
-            --amend ghcr.io/skyblaster/caddy:${{ needs.build-and-push.outputs.TAG_arm64 }}
-          docker manifest push ghcr.io/skyblaster/caddy:latest
+          docker buildx imagetools create \
+            --tag ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:latest \
+            ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:latest-amd64 \
+            ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:latest-arm64
