@@ -12,11 +12,13 @@ jobs:
         arch: [amd64, arm64]
         include:
           - arch: amd64
-            runs-on: ubuntu-latest
+            runs-on: ubuntu-24.04
             platform: linux/amd64
+            tag: amd64
           - arch: arm64
             runs-on: ubuntu-24.04-arm
             platform: linux/arm64
+            tag: arm64
 
     runs-on: ${{ matrix.runs-on }}
 
@@ -34,13 +36,30 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push Docker image
+      - name: Build and push Docker image for ${{ matrix.arch }}
         uses: docker/build-push-action@v4
         with:
           context: .
           file: ./Containerfile
           platforms: ${{ matrix.platform }}
           push: true
-          tags: ghcr.io/skyblaster/caddy:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          tags: ghcr.io/skyblaster/caddy:${{ matrix.tag }}
+
+  push_manifest:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create and push manifest
+        run: |
+          docker manifest create ghcr.io/skyblaster/caddy:latest \
+            ghcr.io/skyblaster/caddy:amd64 \
+            ghcr.io/skyblaster/caddy:arm64
+
+          docker manifest push ghcr.io/skyblaster/caddy:latest
