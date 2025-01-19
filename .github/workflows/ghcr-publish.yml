@@ -44,19 +44,14 @@ jobs:
           username: ${{ env.REGISTRY_USER }}
           password: ${{ env.REGISTRY_PASSWORD }}
 
-      - name: Get upstream tag
-        id: get_upstream_tag
-        run: |
-          UPSTREAM_TAG=$(awk '/^FROM .*caddy:/ { split($2, a, ":"); print a[2] }' Containerfile | tail -n 1)
-          echo "Extracted UPSTREAM_TAG=${UPSTREAM_TAG}"
-          if [ -z "$UPSTREAM_TAG" ]; then
-            echo "UPSTREAM_TAG must not be empty"
-            exit 1
-          fi
-          echo "UPSTREAM_TAG=${UPSTREAM_TAG}" >> $GITHUB_ENV
-
-      - name: Verify UPSTREAM_TAG
-        run: echo "UPSTREAM_TAG is set to ${{ env.UPSTREAM_TAG }}"
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: |
+            ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=${{ github.event.head_commit.message }}
 
       - name: Build and Push Docker Image
         uses: docker/build-push-action@v5
@@ -66,8 +61,8 @@ jobs:
           platforms: linux/${{ matrix.platform }}
           push: true
           tags: |
-            ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.UPSTREAM_TAG }}-${{ matrix.platform }}
-            ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:latest-${{ matrix.platform }}
+            ${{ steps.meta.outputs.tags }}-${{ matrix.platform }}
+            ${{ steps.meta.outputs.tags }}:latest-${{ matrix.platform }}
 
   create-manifest:
     runs-on: ubuntu-latest
@@ -87,8 +82,8 @@ jobs:
         env:
           IMAGE_REGISTRY: ${{ env.IMAGE_REGISTRY }}
           IMAGE_NAME: ${{ env.IMAGE_NAME }}
+          UPSTREAM_TAG: ${{ needs.build-and-push.outputs.meta.outputs.tags }}
         run: |
-          UPSTREAM_TAG=${{ needs.build-and-push.outputs.UPSTREAM_TAG }}
           echo "Creating and pushing manifest for tag $UPSTREAM_TAG"
           docker manifest create $IMAGE_REGISTRY/$IMAGE_NAME:$UPSTREAM_TAG \
             --amend $IMAGE_REGISTRY/$IMAGE_NAME:$UPSTREAM_TAG-amd64 \
