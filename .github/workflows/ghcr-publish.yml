@@ -28,18 +28,15 @@ jobs:
       id-token: write
 
     steps:
-      # Checkout the repository
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Set up Docker Buildx
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
         with:
           install: true
           driver: docker-container
 
-      # Log in to GitHub Container Registry
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v2
         with:
@@ -47,7 +44,6 @@ jobs:
           username: ${{ env.REGISTRY_USER }}
           password: ${{ env.REGISTRY_PASSWORD }}
 
-      # Extract the tag from the Containerfile using awk
       - name: Get upstream tag
         id: get_upstream_tag
         run: |
@@ -58,21 +54,20 @@ jobs:
             exit 1
           fi
           echo "UPSTREAM_TAG=${UPSTREAM_TAG}" >> "$GITHUB_ENV"
+          echo "::set-output name=UPSTREAM_TAG::${UPSTREAM_TAG}"
 
-      # Verify the UPSTREAM_TAG is correctly set
       - name: Verify UPSTREAM_TAG
-        run: echo "UPSTREAM_TAG is set to ${{ env.UPSTREAM_TAG }}"
+        run: echo "UPSTREAM_TAG is set to ${{ steps.get_upstream_tag.outputs.UPSTREAM_TAG }}"
 
-      # Build and push the architecture-specific Docker image
       - name: Build and Push Docker Image
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: Containerfile # Specify the Containerfile here
+          file: Containerfile
           platforms: linux/${{ matrix.platform }}
           push: true
           tags: |
-            ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.UPSTREAM_TAG }}-${{ matrix.platform }}
+            ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.get_upstream_tag.outputs.UPSTREAM_TAG }}-${{ matrix.platform }}
             ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:latest-${{ matrix.platform }}
 
   create-manifest:
@@ -88,13 +83,21 @@ jobs:
           registry: ghcr.io
           username: ${{ env.REGISTRY_USER }}
           password: ${{ env.REGISTRY_PASSWORD }}
-      
-      - name: Create Manifest
-        uses: docker/build-push-action@v5
-        with:
-          push: true
-          tags: |
-            ${{ needs.build-and-push.outputs.UPSTREAM_TAG }}
-            latest
-          platforms: linux/amd64,linux/arm64
-          outputs: type=registry,registry=ghcr.io,index=true
+
+      - name: Create and Push Manifest
+        env:
+          IMAGE_REGISTRY: ${{ env.IMAGE_REGISTRY }}
+          IMAGE_NAME: ${{ env.IMAGE_NAME }}
+          UPSTREAM_TAG: ${{ needs.build-and-push.outputs.UPSTREAM_TAG }}
+        run: |
+          echo "Creating and pushing manifest for tag $UPSTREAM_TAG"
+          docker manifest create $IMAGE_REGISTRY/$IMAGE_NAME:$UPSTREAM_TAG \
+            --amend $IMAGE_REGISTRY/$IMAGE_NAME:$UPSTREAM_TAG-amd64 \
+            --amend $IMAGE_REGISTRY/$IMAGE_NAME:$UPSTREAM_TAG-arm64
+          docker manifest push $IMAGE_REGISTRY/$IMAGE_NAME:$UPSTREAM_TAG
+          
+          echo "Creating and pushing manifest for latest tag"
+          docker manifest create $IMAGE_REGISTRY/$IMAGE_NAME:latest \
+            --amend $IMAGE_REGISTRY/$IMAGE_NAME:latest-amd64 \
+            --amend $IMAGE_REGISTRY/$IMAGE_NAME:latest-arm64
+          docker manifest push $IMAGE_REGISTRY/$IMAGE_NAME:latest
