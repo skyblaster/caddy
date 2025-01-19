@@ -1,14 +1,14 @@
-name: OCI Image CI
+name: Build and Push Docker Image
 
 on:
   push:
     branches: [ "main" ]
 
 env:
-    IMAGE_NAME: caddy
-    IMAGE_REGISTRY: ghcr.io/${{ github.repository_owner }}
-    REGISTRY_USER: ${{ github.actor }}
-    REGISTRY_PASSWORD: ${{ github.token }}
+  IMAGE_NAME: caddy
+  IMAGE_REGISTRY: ghcr.io/${{ github.repository_owner }}
+  REGISTRY_USER: ${{ github.actor }}
+  REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
 
 jobs:
   build-and-push:
@@ -27,9 +27,6 @@ jobs:
       packages: write
       id-token: write
 
-    outputs:
-      sha_tag: ${{ steps.meta.outputs.tags }}
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -47,51 +44,20 @@ jobs:
           username: ${{ env.REGISTRY_USER }}
           password: ${{ env.REGISTRY_PASSWORD }}
 
-      - name: Extract metadata (tags, labels) for Docker
-        id: meta
-        uses: docker/metadata-action@v4
-        with:
-          images: |
-            ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=sha
-
       - name: Build and Push Docker Image
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: Containerfile
+          file: Containerfile  # Change to Dockerfile if renamed
           platforms: linux/${{ matrix.platform }}
           push: true
           tags: |
-            ${{ steps.meta.outputs.tags }}-${{ matrix.platform }}
+            ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:latest
 
-  create-manifest:
-    runs-on: ubuntu-latest
-    needs: build-and-push
-    permissions:
-      contents: read
-      packages: write
-
-    steps:
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v2
-        with:
-          registry: ghcr.io
-          username: ${{ env.REGISTRY_USER }}
-          password: ${{ env.REGISTRY_PASSWORD }}
-
-      - name: Create and Push Manifest with Latest Tag
+      - name: Create and Push Multi-Platform Manifest
+        if: ${{ matrix.platform == 'amd64' }}
         run: |
-          IMAGE_REGISTRY="ghcr.io/${{ github.repository_owner }}"
-          IMAGE_NAME="caddy"
-          SHA_TAG="${{ needs.build-and-push.outputs.sha_tag }}"
-          
-          # Extract the tag part from the SHA_TAG output
-          TAG="${SHA_TAG##*:}"
-          
-          echo "Creating and pushing manifest for latest tag"
-          docker manifest create $IMAGE_REGISTRY/$IMAGE_NAME:latest \
-            --amend $IMAGE_REGISTRY/$IMAGE_NAME:$TAG-amd64 \
-            --amend $IMAGE_REGISTRY/$IMAGE_NAME:$TAG-arm64
-          docker manifest push $IMAGE_REGISTRY/$IMAGE_NAME:latest
+          docker manifest create ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:latest \
+            --amend ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:latest-amd64 \
+            --amend ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:latest-arm64
+          docker manifest push ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:latest
