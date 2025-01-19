@@ -42,7 +42,6 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .  # Assuming the Dockerfile is in the root of the repository
-          file: https://github.com/skyblaster/caddy/blob/main/Containerfile  # Use the URL for the Dockerfile
           platforms: linux/${{ matrix.platform }}
           push: true
           tags: ghcr.io/skyblaster/caddy:latest  # Use a single tag for both architectures
