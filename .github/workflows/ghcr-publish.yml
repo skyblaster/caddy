@@ -29,8 +29,14 @@ jobs:
 
     steps:
       # Checkout push-to-registry action github repository
-      - name: Checkout Push to Registry action
+      - name: Checkout repository
         uses: actions/checkout@v4
+
+      # Install buildah on the runner
+      - name: Install Buildah
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y buildah
 
       # Extract the tag from the Containerfile
       - name: Get upstream tag
