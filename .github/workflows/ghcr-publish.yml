@@ -51,10 +51,6 @@ jobs:
         id: get_upstream_tag
         run: |
           UPSTREAM_TAG=$(grep -m 2 -oP '(?<=FROM caddy:)[^ ]+' Containerfile | tail -n 1)
-          if [ -z "$UPSTREAM_TAG" ]; then
-            echo "UPSTREAM_TAG must not be empty"
-            exit 1
-          fi
           echo "UPSTREAM_TAG=${UPSTREAM_TAG}" >> "$GITHUB_ENV"
 
       # Build and push the architecture-specific Docker image
