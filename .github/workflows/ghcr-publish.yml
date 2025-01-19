@@ -85,14 +85,14 @@ jobs:
       # Create and push the multi-architecture manifest using Docker commands
       - name: Create and Push Manifest
         run: |
-          docker manifest create ghcr.io/skyblaster/caddy:${{ env.UPSTREAM_TAG }} \
-            --amend ghcr.io/skyblaster/caddy:${{ env.UPSTREAM_TAG }}-amd64 \
-            --amend ghcr.io/skyblaster/caddy:${{ env.UPSTREAM_TAG }}-arm64
+          docker manifest create ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:${{ env.UPSTREAM_TAG }} \
+            --amend ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:${{ env.UPSTREAM_TAG }}-amd64 \
+            --amend ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:${{ env.UPSTREAM_TAG }}-arm64
           
-          docker manifest push ghcr.io/skyblaster/caddy:${{ env.UPSTREAM_TAG }}
+          docker manifest push ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:${{ env.UPSTREAM_TAG }}
           
-          docker manifest create ghcr.io/skyblaster/caddy:latest \
-            --amend ghcr.io/skyblaster/caddy:latest-amd64 \
-            --amend ghcr.io/skyblaster/caddy:latest-arm64
+          docker manifest create ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:latest \
+            --amend ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:latest-amd64 \
+            --amend ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:latest-arm64
           
-          docker manifest push ghcr.io/skyblaster/caddy:latest
+          docker manifest push ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:latest
