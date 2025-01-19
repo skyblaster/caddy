@@ -27,9 +27,6 @@ jobs:
       packages: write
       id-token: write
 
-    outputs:
-      tag: ${{ steps.meta.outputs.tags }}
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -47,25 +44,13 @@ jobs:
           username: ${{ env.REGISTRY_USER }}
           password: ${{ env.REGISTRY_PASSWORD }}
 
-      - name: Extract metadata (tags, labels) for Docker
-        id: meta
-        uses: docker/metadata-action@v4
-        with:
-          images: |
-            ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=sha
-
-      - name: Build and Push Docker Image
+      - name: Build Docker Image
         uses: docker/build-push-action@v5
         with:
           context: .
           file: Containerfile
           platforms: linux/${{ matrix.platform }}
           push: true
-          tags: |
-            ${{ steps.meta.outputs.tags }}-${{ matrix.platform }}
-            ${{ steps.meta.outputs.tags }}-latest-${{ matrix.platform }}
 
   create-manifest:
     runs-on: ubuntu-latest
@@ -82,21 +67,11 @@ jobs:
           username: ${{ env.REGISTRY_USER }}
           password: ${{ env.REGISTRY_PASSWORD }}
 
-      - name: Create and Push Manifest
+      - name: Create and Push Manifest with Latest Tag
         env:
           IMAGE_REGISTRY: ${{ env.IMAGE_REGISTRY }}
           IMAGE_NAME: ${{ env.IMAGE_NAME }}
-          TAG: ${{ needs.build-and-push.outputs.tag }}
         run: |
-          # Extract the base tag without the platform suffix
-          BASE_TAG=$(echo $TAG | sed -E 's/-amd64$//;s/-arm64$//')
-
-          echo "Creating and pushing manifest for tag $BASE_TAG"
-          docker manifest create $IMAGE_REGISTRY/$IMAGE_NAME:$BASE_TAG \
-            --amend $IMAGE_REGISTRY/$IMAGE_NAME:$BASE_TAG-amd64 \
-            --amend $IMAGE_REGISTRY/$IMAGE_NAME:$BASE_TAG-arm64
-          docker manifest push $IMAGE_REGISTRY/$IMAGE_NAME:$BASE_TAG
-          
           echo "Creating and pushing manifest for latest tag"
           docker manifest create $IMAGE_REGISTRY/$IMAGE_NAME:latest \
             --amend $IMAGE_REGISTRY/$IMAGE_NAME:latest-amd64 \
