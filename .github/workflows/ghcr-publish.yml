@@ -24,15 +24,15 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push Docker image for amd64
+      - name: Build Docker image for amd64
         id: build
         uses: docker/build-push-action@v4
         with:
           context: .
           file: ./Dockerfile
           platforms: linux/amd64
-          push: true
-          tags: ghcr.io/skyblaster/caddy:amd64
+          push: false  # Don't push with a tag, we'll use the digest directly
+          outputs: type=image,name=ghcr.io/skyblaster/caddy-amd64,push=true  # Push directly with digest
 
   build-arm64:
     runs-on: ubuntu-24.04-arm
@@ -52,15 +52,15 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push Docker image for arm64
+      - name: Build Docker image for arm64
         id: build
         uses: docker/build-push-action@v4
         with:
           context: .
           file: ./Dockerfile
           platforms: linux/arm64
-          push: true
-          tags: ghcr.io/skyblaster/caddy:arm64
+          push: false
+          outputs: type=image,name=ghcr.io/skyblaster/caddy-arm64,push=true
 
   push_manifest:
     needs: [build-amd64, build-arm64]
@@ -78,5 +78,5 @@ jobs:
         with:
           tags: ghcr.io/skyblaster/caddy:latest
           sources: |
-            ghcr.io/skyblaster/caddy:amd64@${{ needs.build-amd64.outputs.digest }}
-            ghcr.io/skyblaster/caddy:arm64@${{ needs.build-arm64.outputs.digest }}
+            ghcr.io/skyblaster/caddy-amd64@${{ needs.build-amd64.outputs.digest }}
+            ghcr.io/skyblaster/caddy-arm64@${{ needs.build-arm64.outputs.digest }}
