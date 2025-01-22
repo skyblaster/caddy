@@ -17,6 +17,8 @@ jobs:
           - platform: linux/arm64
             runner: ubuntu-22.04-arm
     runs-on: ${{ matrix.runner || 'ubuntu-22.04' }}
+    outputs:
+      version: ${{ steps.extract_version.outputs.version }}
     steps:
       - uses: actions/checkout@v4  # Add this to checkout the repository
 
@@ -114,3 +116,4 @@ jobs:
       - name: Inspect image
         run: |
           docker buildx imagetools inspect ${{ env.GHCR_REPO }}:latest
+          docker buildx imagetools inspect ${{ env.GHCR_REPO }}:${{ needs.build.outputs.version }} || echo "Failed to inspect version"
