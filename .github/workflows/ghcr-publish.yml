@@ -18,18 +18,10 @@ jobs:
             runner: ubuntu-22.04-arm
     runs-on: ${{ matrix.runner || 'ubuntu-22.04' }}
     steps:
-      - uses: actions/checkout@v4
-
       - name: Prepare
         run: |
           platform=${{ matrix.platform }}
           echo "PLATFORM_PAIR=${platform//\//-}" >> $GITHUB_ENV          
-
-      - name: Extract version from Dockerfile
-        id: extract_version
-        run: |
-          VERSION=$(grep -oP 'caddy:\K[0-9.]+(?=-builder)' Dockerfile | head -n 1)
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Docker meta
         id: meta
@@ -37,9 +29,6 @@ jobs:
         with:
           images: |
             ${{ env.GHCR_REPO }}
-          tags: |
-            type=raw,value=${{ steps.extract_version.outputs.version }}
-            type=raw,value=latest
 
       - name: Login to GHCR
         uses: docker/login-action@v3
@@ -66,9 +55,7 @@ jobs:
         run: |
           mkdir -p ${{ runner.temp }}/digests
           digest="${{ steps.build.outputs.digest }}"
-          # Replace the colon with another character or remove it
-          sanitized_digest="${digest//:/-}"  # Replace : with -
-          echo $digest > ${{ runner.temp }}/digests/$sanitized_digest
+          touch "${{ runner.temp }}/digests/${digest#sha256:}"          
 
       - name: Upload digest
         uses: actions/upload-artifact@v4
@@ -108,20 +95,13 @@ jobs:
             ${{ env.GHCR_REPO }}            
           tags: |
             type=raw,value=latest
-            type=raw,value=${{ needs.build.outputs.version }}
 
       - name: Create manifest list and push
         working-directory: ${{ runner.temp }}/digests
         run: |
-          for file in *; do
-            # Reconstruct the original digest by replacing '-' back to ':'
-            original_digest="${file//-/:}"
-            # Remove the initial 'sha256:' from the file name since it's already part of the digest string
-            echo "${{ env.GHCR_REPO }}@${original_digest#sha256:}"
-          done | xargs docker buildx imagetools create \
-            $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON")
+          docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+            $(printf '${{ env.GHCR_REPO }}@sha256:%s ' *)          
 
       - name: Inspect image
         run: |
-          docker buildx imagetools inspect ${{ env.GHCR_REPO }}:latest || echo "Failed to inspect latest"
-          docker buildx imagetools inspect ${{ env.GHCR_REPO }}:${{ needs.build.outputs.version }} || echo "Failed to inspect version"
+          docker buildx imagetools inspect ${{ env.GHCR_REPO }}:latest
