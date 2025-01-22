@@ -107,7 +107,7 @@ jobs:
 
       - name: Create manifest list and push
         run: |
-          docker buildx imagetools create --tag ${{ env.GHCR_REPO }}:${{ env.VERSION }} --tag ${{ env.GHCR_REPO }}:latest \
+          docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
             $(find ${{ runner.temp }}/digests -type f -exec echo "${{ env.GHCR_REPO }}@sha256:{}" \;)
 
       - name: Inspect image
