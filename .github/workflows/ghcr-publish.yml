@@ -30,7 +30,7 @@ jobs:
       - name: Extract version from Dockerfile
         id: extract_version
         run: |
-          VERSION=$(grep -oP 'caddy:\K[0-9.]+' Containerfile | tail -n 1)
+          VERSION=$(grep -oP 'caddy:\K[0-9.]+' Dockerfile | tail -n 1)
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Docker meta
