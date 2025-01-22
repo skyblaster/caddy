@@ -2,7 +2,6 @@ name: build
 
 on:
   push:
-  pull_request:
 
 env:
   GHCR_REPO: ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}
@@ -67,7 +66,9 @@ jobs:
         run: |
           mkdir -p ${{ runner.temp }}/digests
           digest="${{ steps.build.outputs.digest }}"
-          echo $digest > ${{ runner.temp }}/digests/$digest
+          # Replace the colon with another character or remove it
+          sanitized_digest="${digest//:/-}"  # Replace : with -
+          echo $digest > ${{ runner.temp }}/digests/$sanitized_digest
 
       - name: Upload digest
         uses: actions/upload-artifact@v4
@@ -112,9 +113,14 @@ jobs:
       - name: Create manifest list and push
         working-directory: ${{ runner.temp }}/digests
         run: |
-          docker buildx imagetools create \
-            $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
-            $(printf '${{ env.GHCR_REPO }}@sha256:%s ' *)
+          # We need to adjust how we handle digest files here since their names have changed
+          # Assuming the digest files still contain the original SHA256 digest content
+          for file in *; do
+            # Reconstruct the original digest by replacing '-' back to ':'
+            original_digest="${file//-/:}"
+            echo "${{ env.GHCR_REPO }}@sha256:$original_digest"
+          done | xargs docker buildx imagetools create \
+            $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON")
 
       - name: Inspect image
         run: |
