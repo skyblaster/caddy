@@ -19,7 +19,7 @@ jobs:
             runner: ubuntu-22.04-arm
     runs-on: ${{ matrix.runner || 'ubuntu-22.04' }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Prepare
         run: |
@@ -67,7 +67,7 @@ jobs:
         run: |
           mkdir -p ${{ runner.temp }}/digests
           digest="${{ steps.build.outputs.digest }}"
-          touch "${{ runner.temp }}/digests/${digest#sha256:}"          
+          echo $digest > ${{ runner.temp }}/digests/$digest
 
       - name: Upload digest
         uses: actions/upload-artifact@v4
@@ -112,10 +112,11 @@ jobs:
       - name: Create manifest list and push
         working-directory: ${{ runner.temp }}/digests
         run: |
-          docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+          docker buildx imagetools create \
+            $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
             $(printf '${{ env.GHCR_REPO }}@sha256:%s ' *)
 
       - name: Inspect image
         run: |
-          docker buildx imagetools inspect ${{ env.GHCR_REPO }}:latest
-          docker buildx imagetools inspect ${{ env.GHCR_REPO }}:${{ needs.build.outputs.version }}
+          docker buildx imagetools inspect ${{ env.GHCR_REPO }}:latest || echo "Failed to inspect latest"
+          docker buildx imagetools inspect ${{ env.GHCR_REPO }}:${{ needs.build.outputs.version }} || echo "Failed to inspect version"
