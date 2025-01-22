@@ -95,6 +95,7 @@ jobs:
             ${{ env.GHCR_REPO }}            
           tags: |
             type=raw,value=latest
+            type=raw,value=v2.9.1
 
       - name: Create manifest list and push
         working-directory: ${{ runner.temp }}/digests
