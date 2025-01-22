@@ -63,7 +63,7 @@ jobs:
         run: |
           mkdir -p ${{ runner.temp }}/digests
           digest="${{ steps.build.outputs.digest }}"
-          touch "${{ runner.temp }}/digests/${digest#sha256:}}"          
+          echo "${digest#sha256:}" > "${{ runner.temp }}/digests/${{ matrix.platform }}"          
 
       - name: Upload digest for amd64
         if: matrix.platform == 'linux/amd64'
@@ -117,8 +117,9 @@ jobs:
 
       - name: Create manifest list and push
         run: |
-          docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
-            $(find ${{ runner.temp }}/digests -type f -exec echo "${{ env.GHCR_REPO }}@sha256:{}" \;)
+          TAGS=$(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON")
+          SOURCES=$(find ${{ runner.temp }}/digests -type f -exec echo "${{ env.GHCR_REPO }}@sha256:{}" \;)
+          docker buildx imagetools create $TAGS $SOURCES
 
       - name: Inspect image
         run: |
