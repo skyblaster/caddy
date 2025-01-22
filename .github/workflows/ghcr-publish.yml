@@ -65,10 +65,20 @@ jobs:
           digest="${{ steps.build.outputs.digest }}"
           touch "${{ runner.temp }}/digests/${digest#sha256:}}"          
 
-      - name: Upload digest
+      - name: Upload digest for amd64
+        if: matrix.platform == 'linux/amd64'
         uses: actions/upload-artifact@v4
         with:
-          name: digests-${{ matrix.platform }}
+          name: digests-linux-amd64
+          path: ${{ runner.temp }}/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Upload digest for arm64
+        if: matrix.platform == 'linux/arm64'
+        uses: actions/upload-artifact@v4
+        with:
+          name: digests-linux-arm64
           path: ${{ runner.temp }}/digests/*
           if-no-files-found: error
           retention-days: 1
