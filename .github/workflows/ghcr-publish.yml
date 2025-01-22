@@ -113,12 +113,11 @@ jobs:
       - name: Create manifest list and push
         working-directory: ${{ runner.temp }}/digests
         run: |
-          # We need to adjust how we handle digest files here since their names have changed
-          # Assuming the digest files still contain the original SHA256 digest content
           for file in *; do
             # Reconstruct the original digest by replacing '-' back to ':'
             original_digest="${file//-/:}"
-            echo "${{ env.GHCR_REPO }}@sha256:$original_digest"
+            # Remove the initial 'sha256:' from the file name since it's already part of the digest string
+            echo "${{ env.GHCR_REPO }}@${original_digest#sha256:}"
           done | xargs docker buildx imagetools create \
             $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON")
 
