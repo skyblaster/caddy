@@ -19,10 +19,18 @@ jobs:
             runner: ubuntu-22.04-arm
     runs-on: ${{ matrix.runner || 'ubuntu-22.04' }}
     steps:
+      - uses: actions/checkout@v3
+
       - name: Prepare
         run: |
           platform=${{ matrix.platform }}
           echo "PLATFORM_PAIR=${platform//\//-}" >> $GITHUB_ENV          
+
+      - name: Extract version from Dockerfile
+        id: extract_version
+        run: |
+          VERSION=$(grep -oP 'caddy:\K[0-9.]+(?=-builder)' Dockerfile | head -n 1)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Docker meta
         id: meta
@@ -30,6 +38,9 @@ jobs:
         with:
           images: |
             ${{ env.GHCR_REPO }}
+          tags: |
+            type=raw,value=${{ steps.extract_version.outputs.version }}
+            type=raw,value=latest
 
       - name: Login to GHCR
         uses: docker/login-action@v3
@@ -95,11 +106,8 @@ jobs:
           images: |
             ${{ env.GHCR_REPO }}            
           tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
             type=raw,value=latest
+            type=raw,value=${{ needs.build.outputs.version }}
 
       - name: Create manifest list and push
         working-directory: ${{ runner.temp }}/digests
@@ -110,3 +118,4 @@ jobs:
       - name: Inspect image
         run: |
           docker buildx imagetools inspect ${{ env.GHCR_REPO }}:latest
+          docker buildx imagetools inspect ${{ env.GHCR_REPO }}:${{ needs.build.outputs.version }}
