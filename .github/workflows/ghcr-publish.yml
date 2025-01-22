@@ -19,14 +19,10 @@ jobs:
             runner: ubuntu-22.04-arm
     runs-on: ${{ matrix.runner || 'ubuntu-22.04' }}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Extract version from Dockerfile
-        id: extract_version
+      - name: Prepare
         run: |
-          VERSION=$(grep -oP '(?<=caddy:)[0-9]+\.[0-9]+\.[0-9]+' Dockerfile | head -n 1)
-          echo "VERSION=${VERSION}" >> $GITHUB_ENV
+          platform=${{ matrix.platform }}
+          echo "PLATFORM_PAIR=${platform//\//-}" >> $GITHUB_ENV          
 
       - name: Docker meta
         id: meta
@@ -34,9 +30,6 @@ jobs:
         with:
           images: |
             ${{ env.GHCR_REPO }}
-          tags: |
-            latest
-            ${{ env.VERSION }}
 
       - name: Login to GHCR
         uses: docker/login-action@v3
@@ -57,28 +50,18 @@ jobs:
         with:
           platforms: ${{ matrix.platform }}
           labels: ${{ steps.meta.outputs.labels }}
-          outputs: type=image,name=${{ env.GHCR_REPO }}:${{ env.VERSION }},name=${{ env.GHCR_REPO }}:latest,push=true
+          outputs: type=image,name=${{ env.GHCR_REPO }},push-by-digest=true,name-canonical=true,push=true
 
       - name: Export digest
         run: |
           mkdir -p ${{ runner.temp }}/digests
           digest="${{ steps.build.outputs.digest }}"
-          echo "${digest#sha256:}" > "${{ runner.temp }}/digests/${{ matrix.platform }}"          
+          touch "${{ runner.temp }}/digests/${digest#sha256:}"          
 
-      - name: Upload digest for amd64
-        if: matrix.platform == 'linux/amd64'
+      - name: Upload digest
         uses: actions/upload-artifact@v4
         with:
-          name: digests-linux-amd64
-          path: ${{ runner.temp }}/digests/*
-          if-no-files-found: error
-          retention-days: 1
-
-      - name: Upload digest for arm64
-        if: matrix.platform == 'linux/arm64'
-        uses: actions/upload-artifact@v4
-        with:
-          name: digests-linux-arm64
+          name: digests-${{ env.PLATFORM_PAIR }}
           path: ${{ runner.temp }}/digests/*
           if-no-files-found: error
           retention-days: 1
@@ -112,15 +95,18 @@ jobs:
           images: |
             ${{ env.GHCR_REPO }}            
           tags: |
-            latest
-            ${{ env.VERSION }}
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest
 
       - name: Create manifest list and push
+        working-directory: ${{ runner.temp }}/digests
         run: |
-          TAGS=$(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON")
-          SOURCES=$(find ${{ runner.temp }}/digests -type f -exec echo "${{ env.GHCR_REPO }}@sha256:{}" \;)
-          docker buildx imagetools create $TAGS $SOURCES
+          docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+            $(printf '${{ env.GHCR_REPO }}@sha256:%s ' *)
 
       - name: Inspect image
         run: |
-          docker buildx imagetools inspect ${{ env.GHCR_REPO }}:${{ env.VERSION }}
+          docker buildx imagetools inspect ${{ env.GHCR_REPO }}:latest
