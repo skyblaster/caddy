@@ -1,10 +1,10 @@
-FROM caddy:2.11.0-beta.1-builder AS builder
+FROM caddy:2.11.0-beta.2-builder AS builder
 
 RUN xcaddy build \
     --with github.com/caddy-dns/cloudflare \
     --with github.com/caddy-dns/porkbun \
     --with github.com/mholt/caddy-dynamicdns
 
-FROM caddy:2.11.0-beta.1
+FROM caddy:2.11.0-beta.2
 
 COPY --from=builder /usr/bin/caddy /usr/bin/caddy
